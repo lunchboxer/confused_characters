@@ -16,7 +16,9 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorSchemeSeed: Colors.purple,
         useMaterial3: true,
-        brightness: Brightness.dark,
+      ),
+      darkTheme: ThemeData.dark(
+        useMaterial3: true,
       ),
       home: const SetupScreen(),
     );
