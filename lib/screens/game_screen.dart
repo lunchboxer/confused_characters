@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:confused_characters/difficulty.dart';
 import 'package:confused_characters/utils.dart';
 import 'package:confused_characters/character_replacement.dart';
+import 'package:confused_characters/screens/scoreboard_screen.dart';
+import 'package:confused_characters/screens/setup_screen.dart';
 
 class GameScreen extends StatefulWidget {
   final int level;
@@ -18,9 +20,15 @@ class GameScreen extends StatefulWidget {
 
 class GameScreenState extends State<GameScreen> {
   int _score = 0;
+  final int _rounds = 10;
+  int _round = 0;
   String _currentSentence = '';
   List<int> _replacedCharIndices = [];
-  int _currentCharIndex = -1;
+  List<int> _correctAnswerIndices = [];
+  List<int> _wrongAnswerIndices = [];
+  int _currentCharIndex = 0;
+  bool _showCharacterOptions = false;
+  String _originalSentence = '';
 
   @override
   void initState() {
@@ -36,7 +44,14 @@ class GameScreenState extends State<GameScreen> {
         originalSentence, widget.level, widget.difficulty);
     _replacedCharIndices =
         _getReplacedCharIndices(_currentSentence, originalSentence);
-    setState(() {});
+    setState(() {
+      _currentCharIndex = 0;
+      _originalSentence = originalSentence;
+      _showCharacterOptions = false;
+      _correctAnswerIndices = [];
+      _wrongAnswerIndices = [];
+      _round++;
+    });
   }
 
   List<int> _getReplacedCharIndices(String replaced, String original) {
@@ -54,18 +69,52 @@ class GameScreenState extends State<GameScreen> {
   void _handleCharacterTap(int index) {
     setState(() {
       _currentCharIndex = index;
+      _showCharacterOptions = true;
     });
   }
 
-  void _handleCharacterSelection(String selectedChar) {
-    final originalChar =
-        _currentSentence[_replacedCharIndices[_currentCharIndex]];
-    if (selectedChar == originalChar) {
-      setState(() {
+  void _handleCharacterSelected(String character) {
+    setState(() {
+      if (character == _originalSentence[_currentCharIndex]) {
         _score++;
-      });
+        _currentSentence = _currentSentence.replaceRange(
+          _currentCharIndex,
+          _currentCharIndex + 1,
+          character,
+        );
+        // remove the character from the list of replaced characters
+        _replacedCharIndices.remove(_currentCharIndex);
+        _correctAnswerIndices.add(_currentCharIndex);
+      } else {
+        _currentSentence = _currentSentence.replaceRange(
+          _currentCharIndex,
+          _currentCharIndex + 1,
+          character,
+        );
+        // remove the character from the list of replaced characters
+        _replacedCharIndices.remove(_currentCharIndex);
+        _wrongAnswerIndices.add(_currentCharIndex);
+      }
+      _currentCharIndex = 0;
+      _showCharacterOptions = false;
+    });
+  }
+
+  void _handleSentenceDone() {
+    if (_round == _rounds) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ScoreboardScreen(
+            difficulty: widget.difficulty,
+            level: widget.level,
+            score: _score,
+          ),
+        ),
+      );
+    } else {
+      _loadNextSentence();
     }
-    _loadNextSentence();
   }
 
   @override
@@ -73,32 +122,79 @@ class GameScreenState extends State<GameScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Confused Characters'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ReplacedCharacterText(
-              sentence: _currentSentence,
-              replacedCharIndices: _replacedCharIndices,
-              onCharacterTap: _handleCharacterTap,
+          const SizedBox(height: 16),
+          Text(
+            'Round $_round/$_rounds',
+            style: const TextStyle(fontSize: 24),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ReplacedCharacterText(
+                  sentence: _currentSentence,
+                  replacedCharIndices: _replacedCharIndices,
+                  correctAnswerIndices: _correctAnswerIndices,
+                  wrongAnswerIndices: _wrongAnswerIndices,
+                  onCharacterTap: _handleCharacterTap,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          Text('Score: $_score'),
-          if (_currentCharIndex != -1)
+          if (_showCharacterOptions) ...[
+            const SizedBox(height: 16),
             CharacterOptions(
-              originalChar:
-                  _currentSentence[_replacedCharIndices[_currentCharIndex]],
-              onCharacterSelected: _handleCharacterSelection,
+              originalChar: _originalSentence[_currentCharIndex],
+              onCharacterSelected: _handleCharacterSelected,
             ),
+          ],
         ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(4.0), // Add padding around the buttons
+          child: Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SetupScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.close),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(16.0),
+                    ),
+                    label: const Text('Quit'),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 4.0,
+                      horizontal: 4.0), // Add horizontal padding to each button
+                  child: ElevatedButton.icon(
+                    onPressed: _handleSentenceDone,
+                    icon: const Icon(Icons.done),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(16.0),
+                    ),
+                    label: Text(_round == _rounds ? 'Done' : 'Next'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -107,11 +203,15 @@ class GameScreenState extends State<GameScreen> {
 class ReplacedCharacterText extends StatelessWidget {
   final String sentence;
   final List<int> replacedCharIndices;
+  final List<int> correctAnswerIndices;
+  final List<int> wrongAnswerIndices;
   final Function(int) onCharacterTap;
 
   const ReplacedCharacterText({
     super.key,
     required this.sentence,
+    required this.wrongAnswerIndices,
+    required this.correctAnswerIndices,
     required this.replacedCharIndices,
     required this.onCharacterTap,
   });
@@ -120,27 +220,41 @@ class ReplacedCharacterText extends StatelessWidget {
   Widget build(BuildContext context) {
     final spans = <InlineSpan>[];
     final chars = sentence.split('');
-    int index = 0;
-    for (final char in chars) {
-      final isReplaced = replacedCharIndices.contains(index);
+    final characterIndices = <int>[];
+    int charIndex = 0;
+
+    for (int i = 0; i < chars.length; i++) {
+      final isReplaced = replacedCharIndices.contains(i);
+      final isCorrect = correctAnswerIndices.contains(i);
+      final isWrong = wrongAnswerIndices.contains(i);
+      characterIndices.add(charIndex);
+
       spans.add(
         WidgetSpan(
           child: GestureDetector(
-            onTap: isReplaced ? () => onCharacterTap(index) : null,
+            onTap: isReplaced
+                ? () => onCharacterTap(i)
+                : null, // Pass the original index here
             child: Text(
-              char,
+              chars[i],
               style: TextStyle(
                 color: isReplaced
-                    ? Colors.red
-                    : Theme.of(context).colorScheme.onSurface,
-                fontSize: 32,
+                    ? Theme.of(context).colorScheme.primary
+                    : isCorrect
+                        ? Colors.green
+                        : isWrong
+                            ? Colors.red
+                            : Theme.of(context).colorScheme.onBackground,
+                fontSize: 54,
               ),
             ),
           ),
         ),
       );
-      index++;
+
+      charIndex += chars[i].length;
     }
+
     return Text.rich(TextSpan(children: spans));
   }
 }
@@ -163,10 +277,7 @@ class CharacterOptions extends StatelessWidget {
         if (snapshot.hasData) {
           final replacementIndex = snapshot.data!;
           final similarChars = replacementIndex[originalChar] ?? [];
-          final options = [
-            originalChar,
-            ...similarChars.take(3).toList()..shuffle()
-          ];
+          final options = [originalChar, ...similarChars.take(3)]..shuffle();
           return Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -176,12 +287,12 @@ class CharacterOptions extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     char,
-                    style: const TextStyle(fontSize: 32),
+                    style: const TextStyle(fontSize: 54),
                   ),
                 ),
               );
@@ -190,7 +301,7 @@ class CharacterOptions extends StatelessWidget {
         } else if (snapshot.hasError) {
           return Text('Error: ${snapshot.error}');
         }
-        return const CircularProgressIndicator();
+        return const Spacer();
       },
     );
   }

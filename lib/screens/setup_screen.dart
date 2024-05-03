@@ -17,77 +17,66 @@ class _SetupScreenState extends State<SetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        title: const Text('Confused Characters'),
+        leading: null,
+        title: const Text('Setup'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 32),
             const Text(
-              "Welcome to Confused Characters, the game of Chinese character puns. Let's get set up before we begin!",
-              style: TextStyle(fontSize: 16),
+              "Welcome to Confused Characters!",
+              style: TextStyle(fontSize: 24),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+            const Text(
+              "In this game of Chinese character puns, some characters are replaced with other characters. You have to guess what the correct characters are. Good luck!",
+            ),
+            const SizedBox(height: 24),
             const Text(
               'HSK vocabulary',
-              style: TextStyle(fontSize: 32),
+              style: TextStyle(fontSize: 24),
             ),
-            DropdownButton<int>(
-              value: selectedLevel,
-              style: const TextStyle(fontSize: 24),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    selectedLevel = value;
-                  });
-                }
+            ButtonGroup(
+              selectedValue: selectedLevel,
+              onSelected: (value) {
+                setState(() {
+                  selectedLevel = value;
+                });
               },
-              items: List.generate(6, (index) => index + 1)
-                  .map((level) => DropdownMenuItem<int>(
-                        value: level,
-                        child: Text('Level $level'),
-                      ))
-                  .toList(),
+              values: List.generate(6, (index) => index + 1),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             const Text(
               'Difficulty',
-              style: TextStyle(fontSize: 32),
+              style: TextStyle(fontSize: 24),
             ),
-            DropdownButton<Difficulty>(
-              value: selectedDifficulty,
-              style: const TextStyle(fontSize: 24),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    selectedDifficulty = value;
-                  });
-                }
+            ButtonGroup(
+              selectedValue: selectedDifficulty.index,
+              onSelected: (value) {
+                setState(() {
+                  selectedDifficulty = Difficulty.values[value];
+                });
               },
-              items: Difficulty.values
-                  .map((difficulty) => DropdownMenuItem<Difficulty>(
-                        value: difficulty,
-                        child: Text(difficulty.name),
-                      ))
-                  .toList(),
+              values: Difficulty.values.map((difficulty) => difficulty.index).toList(),
+              labels: Difficulty.values.map((difficulty) => difficulty.name).toList(),
             ),
             const Spacer(),
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.push(
+                Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => GameScreen.withLevel(
-                            level: selectedLevel,
-                            difficulty: selectedDifficulty,
-                          )),
+                    builder: (context) => GameScreen.withLevel(
+                      level: selectedLevel,
+                      difficulty: selectedDifficulty,
+                    ),
+                  ),
                 );
               },
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Play'),
+              icon: const Icon(Icons.videogame_asset),
+              label: const Text('Play the game'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 60),
               ),
@@ -95,6 +84,40 @@ class _SetupScreenState extends State<SetupScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class ButtonGroup extends StatelessWidget {
+  final int selectedValue;
+  final Function(int) onSelected;
+  final List<int> values;
+  final List<String>? labels;
+
+  const ButtonGroup({
+    super.key,
+    required this.selectedValue,
+    required this.onSelected,
+    required this.values,
+    this.labels,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      children: values.asMap().entries.map((entry) {
+        final value = entry.value;
+        final label = labels?.elementAt(entry.key) ?? value.toString();
+        return OutlinedButton(
+          onPressed: () => onSelected(value),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: value == selectedValue ? Theme.of(context).colorScheme.primary : null,
+            foregroundColor: value == selectedValue ? Theme.of(context).colorScheme.onPrimary : null,
+          ),
+          child: Text(label),
+        );
+      }).toList(),
     );
   }
 }
